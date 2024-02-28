@@ -30,7 +30,7 @@ void compute_nucleotide_occurrences(DNA_sequence *dna_seq) {
     dna_seq->C_count = 0;
     dna_seq->G_count = 0;
     dna_seq->T_count = 0;
-    for(int i =0; i<dna_seq->sequence[i]!=\'0';i++)
+    for(int i =0; i<dna_seq->sequence[i]!='\0';i++)
     {
         if(dna_seq->sequence[i]=='A'){
               dna_seq->A_count++;
