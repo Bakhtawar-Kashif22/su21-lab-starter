@@ -1,7 +1,9 @@
 .globl simple_fn naive_pow inc_arr
 
 .data
-failure_message: .asciiz "Test failed for some reason.\n"
+pow_string: .asciiz "pow"
+inc_arr_string: .asciiz "inc_arr"
+fail_message: .asciiz "Test failed for some reason.\n"
 success_message: .asciiz "Sanity checks passed! Make sure there are no CC violations.\n"
 array:
     .word 1 2 3 4 5
@@ -10,59 +12,32 @@ exp_inc_array_result:
 
 .text
 main:
-    # We test our program by loading a bunch of random values
-    # into a few saved registers - if any of these are modified
-    # after these functions return, then we know calling
-    # convention was broken by one of these functions
-    li s0, 2623
-    li s1, 2910
-    # ... skipping middle registers so the file isn't too long
-    # If we wanted to be rigorous, we would add checks for
-    # s2-s20 as well
-    li s11, 134
-    # Now, we call some functions
-    # simple_fn: should return 1
-    jal simple_fn # Shorthand for "jal ra, simple_fn"
-    li t0, 1
-    bne a0, t0, failure
-    # naive_pow: should return 2 ** 7 = 128
+    # pow: should return 2 ** 7 = 128
     li a0, 2
     li a1, 7
-    jal naive_pow
-    li t0, 128
-    bne a0, t0, failure
+    jal pow
+    li t0, 128 # verifies that pow returned the right value
+    beq a0, t0, next_test
+    la a0, pow_string
+    j failure
+    
+next_test:
     # inc_arr: increments "array" in place
     la a0, array
     li a1, 5
     jal inc_arr
-    jal check_arr # Verifies inc_arr and jumps to "failure" on failure
-    # Check the values in the saved registers for sanity
-    li t0, 2623
-    li t1, 2910
-    li t2, 134
-    bne s0, t0, failure
-    bne s1, t1, failure
-    bne s11, t2, failure
-    # If none of those branches were hit, print a message and exit normally
+    jal check_arr # Verifies inc_arr returned the right value
+    # all tests pass, exit normally
     li a0, 4
     la a1, success_message
     ecall
     li a0, 10
     ecall
 
-# Just a simple function. Returns 1.
-#
-# FIXME Fix the reported error in this function (you can delete lines
-# if necessary, as long as the function still returns 1 in a0).
-simple_fn:
-    mv a0, t0
-    li a0, 1
-    ret
-
 # Computes a0 to the power of a1.
 # This is analogous to the following C pseudocode:
 #
-# uint32_t naive_pow(uint32_t a0, uint32_t a1) {
+# uint32_t pow(uint32_t a0, uint32_t a1) {
 #     uint32_t s0 = 1;
 #     while (a1 != 0) {
 #         s0 *= a0;
@@ -71,21 +46,24 @@ simple_fn:
 #     return s0;
 # }
 #
-# FIXME There's a CC error with this function!
-# The big all-caps comments should give you a hint about what's
-# missing. Another hint: what does the "s" in "s0" stand for?
-naive_pow:
+pow:
     # BEGIN PROLOGUE
+    # FIXME Need to save the calle saved register(s)
+    addi sp, sp, -4
+    sw s0, 0(sp)
     # END PROLOGUE
     li s0, 1
-naive_pow_loop:
-    beq a1, zero, naive_pow_end
+pow_loop:
+    beq a1, zero, pow_end
     mul s0, s0, a0
     addi a1, a1, -1
-    j naive_pow_loop
-naive_pow_end:
+    j pow_loop
+pow_end:
     mv a0, s0
     # BEGIN EPILOGUE
+    # FIXME Need to restore the calle saved register(s)
+    lw s0, 0(sp)
+    addi sp, sp, 4
     # END EPILOGUE
     ret
 
@@ -97,10 +75,10 @@ naive_pow_end:
 # address as argument and increments the 32-bit value stored there.
 inc_arr:
     # BEGIN PROLOGUE
-    #
     # FIXME What other registers need to be saved?
-    #
-    addi sp, sp, -4
+    addi sp, sp, -12
+    sw s1, 8(sp)
+    sw s0, 4(sp)
     sw ra, 0(sp)
     # END PROLOGUE
     mv s0, a0 # Copy start of array to saved register
@@ -113,17 +91,24 @@ inc_arr_loop:
     # Prepare to call helper_fn
     #
     # FIXME Add code to preserve the value in t0 before we call helper_fn
-    # Hint: What does the "t" in "t0" stand for?
     # Also ask yourself this: why don't we need to preserve t1?
-    #
+    # Ans: t1 is not used in the following part
+    addi sp, sp, -4
+    sw t0, 0(sp)
     jal helper_fn
+    # FIXME Restore t0
+    lw t0, 0(sp)
+    addi sp, sp, 4
     # Finished call for helper_fn
     addi t0, t0, 1 # Increment counter
     j inc_arr_loop
 inc_arr_end:
     # BEGIN EPILOGUE
+    # FIXME What other registers need to be restored?
+    lw s1, 8(sp)
+    lw s0, 4(sp)
     lw ra, 0(sp)
-    addi sp, sp, 4
+    addi sp, sp, 12
     # END EPILOGUE
     ret
 
@@ -131,17 +116,25 @@ inc_arr_end:
 # It doesn't return anything.
 # C pseudocode for what it does: "*a0 = *a0 + 1"
 #
-# FIXME This function also violates calling convention, but it might not
+# This function also violates calling convention, but it might not
 # be reported by the Venus CC checker (try and figure out why).
+# Ans: RISC-V allows the unligned memory access
+#
 # You should fix the bug anyway by filling in the prologue and epilogue
 # as appropriate.
 helper_fn:
     # BEGIN PROLOGUE
+    # FIXME: YOUR CODE HERE
+    addi sp, sp, -4
+    sw s0, 0(sp)
     # END PROLOGUE
     lw t1, 0(a0)
     addi s0, t1, 1
     sw s0, 0(a0)
     # BEGIN EPILOGUE
+    # FIXME: YOUR CODE HERE
+    lw s0, 0(sp)
+    addi sp, sp, 4
     # END EPILOGUE
     ret
 
@@ -158,7 +151,10 @@ check_arr_loop:
     beq t1, t2, check_arr_end
     lw t3, 0(t0)
     lw t4, 0(t1)
-    bne t3, t4, failure
+    beq t3, t4, continue
+    la a0, inc_arr_string
+    j failure
+continue:
     addi t0, t0, 4
     addi t1, t1, 4
     j check_arr_loop
@@ -166,12 +162,14 @@ check_arr_end:
     ret
     
 
-# This isn't really a function - it just prints a message, then
-# terminates the program on failure. Think of it like an exception.
+# prints a failure message, then terminates the program
+# Since we don't return back to the caller, this is like executing an exception
+# inputs: a0 = the name of the test that failed
 failure:
+	mv a3, a0 # load the name of the test that failed
     li a0, 4 # String print ecall
-    la a1, failure_message
+    la a1, fail_message
+    
     ecall
     li a0, 10 # Exit ecall
     ecall
-    

@@ -1,0 +1,73 @@
+1.Error: In the map function, when loading the address of the next node into a0 before the recursion, the code mistakenly uses the address of the function instead of the address of the next node.
+
+assembly
+
+# Incorrect
+la a0, 8(s0)    # Incorrectly loads the address of the function
+lw a1, 0(s1)
+
+# Correction
+lw a0, 8(s0)    # Load the address of the next node
+lw a1, 0(s1)
+
+2.Error: In the create_default_list function, the code uses an incorrect immediate value for loading memory in the fillArray subroutine.
+
+assembly
+
+# Incorrect
+li a0, 20
+jal malloc
+
+# Correction
+li a0, 24  # Since each node is 24 bytes long (4 + 4 + 16)
+jal malloc
+
+3.Error: The create_default_list function fails to properly increment the index t1 in the fillArray subroutine, which leads to incorrect array copying.
+
+assembly
+
+# Incorrect
+addi t1, t1, 1
+
+# Correction
+addi a1, a1, 4  # Move to the next integer in the source array
+
+4.Error: In the print_list function, the loop to print the array elements does not correctly exit after printing all elements.
+
+assembly
+
+# Incorrect
+li t6, 5
+bne t1, t6, printLoop
+
+# Correction
+li t6, 5
+beq t1, t6, donePrinting
+
+5.Error: The print_list function fails to properly print the newline character after printing each array.
+
+assembly
+
+# Incorrect
+li a1, '\n'
+
+# Correction
+li a1, '\n'
+li a0, 11
+ecall
+
+6.Error: The malloc subroutine does not properly save the return address before invoking the syscall.
+
+assembly
+
+# Incorrect
+mv a1, a0
+li a0, 9
+ecall
+
+# Correction
+sw ra, 0(sp)  # Save the return address
+mv a1, a0
+li a0, 9
+ecall
+lw ra, 0(sp)  # Restore the return address before returning
